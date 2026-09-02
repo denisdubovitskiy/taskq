@@ -19,18 +19,23 @@
 go get github.com/denisdubovitskiy/taskq
 ```
 
-### Contrib-модули (production-брокеры)
+### Contrib-модули (production-интеграции)
 
-Production-реализации `Broker`/`Backend`/`Locker` живут в отдельных
-Go-модулях — подключается только то, что нужно:
+Производственные реализации plugin-интерфейсов живут в отдельных
+Go-модулях — подключается только то, что нужно, ядро остаётся на чистой
+stdlib:
 
-| Модуль | Транспорт |
+| Модуль | Реализует |
 |--------|-----------|
-| [`contrib/redis`](./contrib/redis) | Redis Streams + consumer group |
-| [`contrib/postgresql`](./contrib/postgresql) | PostgreSQL (river-style) |
+| [`contrib/redis`](./contrib/redis) | `Broker` / `Backend` / `Locker` — Redis Streams + consumer group |
+| [`contrib/postgresql`](./contrib/postgresql) | `Broker` / `Backend` / `Locker` — PostgreSQL (river-style) |
+| [`contrib/prometheus`](./contrib/prometheus) | `Meter` — метрики в реестр Prometheus |
+| [`contrib/otel`](./contrib/otel) | `Tracer` — спаны в OpenTelemetry API |
 
 ```bash
 go get github.com/denisdubovitskiy/taskq/contrib/redis
+go get github.com/denisdubovitskiy/taskq/contrib/prometheus
+go get github.com/denisdubovitskiy/taskq/contrib/otel
 ```
 
 ## Документация
@@ -396,7 +401,15 @@ defer scheduler.Stop()
 можно отдельно для клиента (`WithLogger`, `WithTracer`, `WithMeter`) и воркера
 (`WithWorkerLogger`, `WithWorkerTracer`, `WithWorkerMeter`).
 
-В репозитории — референс-адаптер на стандартной `log/slog` (`adapters/slogadapter`):
+Готовые адаптеры:
+
+- **`adapters/slogadapter`** — референс на стандартной `log/slog`:
+  спаны и метрики рендерятся лог-строками уровня Debug.
+- **`contrib/prometheus`** — `Meter` для Prometheus (`prometheus/client_golang`).
+- **`contrib/otel`** — `Tracer` для OpenTelemetry (только OTel API;
+  экспортеры и сэмплеры — на вашей стороне).
+
+Slog-адаптер для локальной отладки:
 
 ```go
 logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -420,7 +433,31 @@ worker, err := taskq.NewWorker(registry, broker, backend,
 - **Meter** — каждое обновление метрик (`taskq.submitted`, `taskq.duration` и др.) —
   строка уровня Debug; включайте уровень Debug, чтобы видеть их.
 
-Свои реализации (zap, prometheus, OpenTelemetry) пишутся по тем же интерфейсам.
+В production метрики и трейсы собирают contrib-модули:
+
+```go
+// Prometheus: taskq.submitted → taskq_submitted и т.д.,
+// task — лейбл, taskq.duration — в секундах.
+reg := prometheus.NewRegistry()
+meter := prometheusmeter.NewMeter(reg)
+
+client, err := taskq.NewClient(broker, backend, taskq.WithMeter(meter))
+worker, err := taskq.NewWorker(registry, broker, backend,
+	taskq.WithWorkerMeter(meter))
+
+http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+
+// OpenTelemetry: taskq.Submit / taskq.Worker.process и др.,
+// ошибки — событие exception + статус Error.
+tracer := oteltracer.NewTracer(otel.Tracer("taskq"))
+
+client, err = taskq.NewClient(broker, backend, taskq.WithTracer(tracer))
+worker, err = taskq.NewWorker(registry, broker, backend,
+	taskq.WithWorkerTracer(tracer))
+```
+
+Полный список эмитируемых событий — в документации (Observability).
+Адаптеры под другие бэкенды (zap, …) пишутся по тем же интерфейсам.
 
 ## Примеры
 
@@ -461,7 +498,8 @@ go run ./example/scheduler  # планировщик: AddEvery/AddCron, тайм
                        └─────────┘
 ```
 
-Полный дизайн: [DESIGN.md](./DESIGN.md).
+Подробности архитектуры и концепции — в документации (`make docs`, разделы
+Concepts и API Reference).
 
 ## Разработка
 
