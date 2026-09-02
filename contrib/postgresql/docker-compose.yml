@@ -1,0 +1,15 @@
+# Интеграционные тесты: docker compose up -d && go test ./...
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: taskq
+      POSTGRES_PASSWORD: taskq
+      POSTGRES_DB: taskq
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskq -d taskq"]
+      interval: 1s
+      timeout: 3s
+      retries: 10

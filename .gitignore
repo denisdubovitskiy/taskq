@@ -1,0 +1,5 @@
+/.gocache
+/taskq-example-*
+/.venv
+/site
+/bin

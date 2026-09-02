@@ -1,0 +1,39 @@
+# Конфигурация golangci-lint (формат v2).
+#
+# Локально: make lint — бинарник ставится в ./bin (см. Makefile).
+# CI: docker-образ golangci/golangci-lint (см. .github/workflows/ci.yml).
+# Версия локального бинарника и docker-образа должна совпадать (Makefile: GOLANGCI_LINT_VERSION).
+#
+# Конфиг общий для всех модулей репозитория: для contrib/* он подхватывается
+# поиском вверх по дереву от рабочего каталога.
+
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # standard = errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - durationcheck
+    - errorlint
+    - misspell
+    - nilerr
+    - noctx
+    - predeclared
+    - reassign
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - usetesting
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

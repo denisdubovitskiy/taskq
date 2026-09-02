@@ -1,0 +1,120 @@
+site_name: taskq
+site_description: >-
+  Typed background tasks and job queue for Go: Client, Worker, Scheduler,
+  groups/chains/chords, pluggable brokers and backends.
+site_url: https://denisdubovitskiy.github.io/taskq/
+
+repo_name: denisdubovitskiy/taskq
+repo_url: https://github.com/denisdubovitskiy/taskq
+
+docs_dir: docs
+
+plugins:
+  - search:
+      lang:
+        - en
+        - ru
+  - i18n:
+      docs_structure: folder
+      languages:
+        - name: English
+          locale: en
+          default: true
+          nav:
+            - Overview: index.md
+            - Getting Started: getting-started.md
+            - Concepts & Architecture: concepts.md
+            - Tasks & Handlers: tasks.md
+            - Client & Submit: client.md
+            - Worker: worker.md
+            - Job Lifecycle: lifecycle.md
+            - Orchestration: orchestration.md
+            - Scheduler: scheduler.md
+            - Brokers & Backends: backends.md
+            - Redis (contrib): redis.md
+            - PostgreSQL (contrib): postgresql.md
+            - Observability: observability.md
+            - API Reference: api-reference.md
+            - Troubleshooting: troubleshooting.md
+            - Examples: examples.md
+            - Contributing: contributing.md
+            - License: license.md
+        - name: Русский
+          locale: ru
+          nav:
+            - Обзор: index.md
+            - Быстрый старт: getting-started.md
+            - Концепции и архитектура: concepts.md
+            - Задачи и обработчики: tasks.md
+            - Клиент и отправка: client.md
+            - Воркер: worker.md
+            - Жизненный цикл задачи: lifecycle.md
+            - Оркестрация: orchestration.md
+            - Планировщик: scheduler.md
+            - Брокеры и бэкенды: backends.md
+            - Redis (contrib): redis.md
+            - PostgreSQL (contrib): postgresql.md
+            - Наблюдаемость: observability.md
+            - Справочник API: api-reference.md
+            - Решаение проблем: troubleshooting.md
+            - Примеры: examples.md
+            - Вклад в проект: contributing.md
+            - Лицензия: license.md
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - search.highlight
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink:
+      user: github
+      repo: denisdubovitskiy/taskq
+  - pymdownx.snippets:
+      base_path: .
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+exclude_docs: PLAN.md
+
+use_directory_urls: true

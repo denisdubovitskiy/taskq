@@ -1,0 +1,125 @@
+# CI: линт (golangci-lint в docker) + юнит-тесты ядра и contrib-модулей без
+# внешних сервисов (prometheus/otel) + интеграционные тесты contrib-модулей
+# (Redis/PostgreSQL через docker compose).
+#
+# Локальный прогон того же пайплайна: `make ci-local` (инструмент act,
+# ставится в ./bin; см. комментарий к цели в Makefile).
+#
+# Версия golangci-lint здесь должна совпадать с GOLANGCI_LINT_VERSION
+# в Makefile — так локальный ./bin/golangci-lint и CI проверяют одно и то же.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Линтер всех модулей. golangci-lint запускается из официального
+  # docker-образа (внутри уже есть нужный go-тулчейн) — не зависит ни от
+  # версии go на раннере, ни от системных установок. Конфигурация общая:
+  # .golangci.yml подхватывается поиском вверх по дереву и для contrib/*.
+  lint:
+    name: Линт (golangci-lint)
+    runs-on: ubuntu-latest
+    env:
+      GOLANGCI_IMAGE: golangci/golangci-lint:v2.11.4
+      # Кэш go внутрь workspace: переиспользуется между шагами job'ы,
+      # а при локальном запуске через act — и между прогонами.
+      # Монтируется всегда корень репозитория, чтобы golangci-lint находил
+      # общий .golangci.yml; рабочий каталог задаётся через -w.
+      GOLANGCI_CACHE_FLAGS: -e GOCACHE=/app/.gocache/ci -e GOMODCACHE=/app/.gocache/mod
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ядро (taskq)
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/app" -w /app $GOLANGCI_CACHE_FLAGS $GOLANGCI_IMAGE golangci-lint run ./...
+
+      - name: contrib/redis
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/app" -w /app/contrib/redis $GOLANGCI_CACHE_FLAGS $GOLANGCI_IMAGE golangci-lint run ./...
+
+      - name: contrib/postgresql
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/app" -w /app/contrib/postgresql $GOLANGCI_CACHE_FLAGS $GOLANGCI_IMAGE golangci-lint run ./...
+
+      - name: contrib/prometheus
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/app" -w /app/contrib/prometheus $GOLANGCI_CACHE_FLAGS $GOLANGCI_IMAGE golangci-lint run ./...
+
+      - name: contrib/otel
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/app" -w /app/contrib/otel $GOLANGCI_CACHE_FLAGS $GOLANGCI_IMAGE golangci-lint run ./...
+
+  # Юнит-тесты корневого модуля и contrib-модулей без внешних сервисов.
+  test:
+    name: Юнит-тесты (ядро, prometheus, otel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            contrib/redis/go.sum
+            contrib/postgresql/go.sum
+            contrib/prometheus/go.sum
+            contrib/otel/go.sum
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test -race
+        run: go test -race -count=1 ./...
+
+      - name: Тесты contrib/prometheus
+        working-directory: contrib/prometheus
+        run: |
+          go vet ./...
+          go test -race -count=1 ./...
+
+      - name: Тесты contrib/otel
+        working-directory: contrib/otel
+        run: |
+          go vet ./...
+          go test -race -count=1 ./...
+
+      - name: Сборка примеров
+        run: |
+          go build ./example/...
+          cd docs/examples && go build ./...
+
+  # Интеграционные тесты contrib-модулей: сервис поднимается docker compose
+  # (см. contrib/<module>/docker-compose.yml), тесты сами пропускаются,
+  # если сервис недоступен.
+  #
+  # При локальном запуске через act (make ci-local) compose-порты доступны
+  # из job-контейнеров по localhost: act запускает их в host-сети docker-демона.
+  integration:
+    name: Интеграционные (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [redis, postgresql]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: contrib/${{ matrix.module }}/go.mod
+
+      - name: Поднять ${{ matrix.module }} (docker compose)
+        working-directory: contrib/${{ matrix.module }}
+        run: docker compose up -d --wait
+
+      - name: go test -race
+        working-directory: contrib/${{ matrix.module }}
+        run: go test -race -count=1 ./...
+
+      - name: Остановить ${{ matrix.module }}
+        if: always()
+        working-directory: contrib/${{ matrix.module }}
+        run: docker compose down -v

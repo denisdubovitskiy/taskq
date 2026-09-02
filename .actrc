@@ -1,0 +1,8 @@
+# Дефолты локального запуска GitHub Actions через act (make ci-local).
+#
+# Полный образ окружения ubuntu-latest: поддержка actions/setup-go, docker и т.д.
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+#
+# Сокет docker-демона для монтирования в job-контейнеры: путь внутри VM
+# докер-демона (Lima VM / Docker Desktop / локальный linux — один и тот же).
+--container-daemon-socket unix:///var/run/docker.sock
