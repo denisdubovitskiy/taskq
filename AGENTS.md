@@ -14,10 +14,6 @@
 
 Все команды запускать из корня `taskq/`:
 
-```bash
-cd /Users/dvdubovitskiy/projects/taskq
-```
-
 ## Команды разработки
 
 ```bash
